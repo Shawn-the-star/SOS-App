@@ -36,6 +36,7 @@ export default function EvidenceScreen() {
 
       const { sound: newSound } = await Audio.Sound.createAsync({ uri });
 
+      console.log("Playing sound:", uri);
       setSound(newSound);
 
       await newSound.playAsync();

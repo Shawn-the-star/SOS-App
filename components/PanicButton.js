@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import { Pressable, Text, StyleSheet, View, Animated } from "react-native";
 
 export default function PanicButton({ onActivate, onStop, isActive }) {
@@ -9,12 +9,36 @@ export default function PanicButton({ onActivate, onStop, isActive }) {
   const scale = useRef(new Animated.Value(1)).current;
   const progress = useRef(new Animated.Value(0)).current;
 
+  // 🔥 NEW: pulse animation for active state
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isActive) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, {
+            toValue: 1.1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulse, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulse.setValue(1);
+    }
+  }, [isActive]);
+
   const handlePressIn = () => {
 
     activated.current = false;
 
     Animated.spring(scale, {
-      toValue: 0.9,
+      toValue: 0.92,
       useNativeDriver: true
     }).start();
 
@@ -25,13 +49,10 @@ export default function PanicButton({ onActivate, onStop, isActive }) {
     }).start();
 
     timer.current = setTimeout(() => {
-
       activated.current = true;
       onActivate();
       progress.setValue(0);
-
     }, 3000);
-
   };
 
   const handlePressOut = () => {
@@ -44,11 +65,7 @@ export default function PanicButton({ onActivate, onStop, isActive }) {
     if (!activated.current) {
       clearTimeout(timer.current);
       progress.setValue(0);
-    } else {
-      // DO NOTHING after activation
     }
-
-
   };
 
   const widthInterpolate = progress.interpolate({
@@ -73,46 +90,52 @@ export default function PanicButton({ onActivate, onStop, isActive }) {
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
           >
-
             <Animated.View
               style={[
-                styles.button,
+                styles.buttonWrapper,
                 { transform: [{ scale }] }
               ]}
             >
 
-              <Text style={styles.text}>SOS</Text>
+              {/* Glow Ring */}
+              <View style={styles.outerRing} />
 
-              <Animated.View
-                style={[
-                  styles.progress,
-                  { width: widthInterpolate }
-                ]}
-              />
+              {/* Main Button */}
+              <View style={styles.button}>
+                <Text style={styles.text}>SOS</Text>
+
+                <Animated.View
+                  style={[
+                    styles.progress,
+                    { width: widthInterpolate }
+                  ]}
+                />
+              </View>
 
             </Animated.View>
-
           </Pressable>
         </>
 
       ) : (
 
         <>
-          <Text style={styles.activeTitle}>SOS ACTIVE</Text>
+          <Text style={styles.activeTitle}>🚨 SOS ACTIVE</Text>
 
           <Text style={styles.subtitle}>
             Recording & tracking in progress
           </Text>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.stopButton,
-              { transform: [{ scale: pressed ? 0.95 : 1 }] }
-            ]}
-            onPress={onStop}
-          >
-            <Text style={styles.stopText}>STOP SOS</Text>
-          </Pressable>
+          <Animated.View style={{ transform: [{ scale: pulse }] }}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.stopButton,
+                { transform: [{ scale: pressed ? 0.96 : 1 }] }
+              ]}
+              onPress={onStop}
+            >
+              <Text style={styles.stopText}>STOP SOS</Text>
+            </Pressable>
+          </Animated.View>
         </>
 
       )}
@@ -127,46 +150,62 @@ const styles = StyleSheet.create({
 
   container: {
     alignItems: "center",
-    marginTop: 40
+    marginTop: 30
   },
 
   title: {
     fontSize: 26,
     fontWeight: "700",
-    color: "white",
-    marginBottom: 6
+    color: "#fff",
+    marginBottom: 6,
+    letterSpacing: 0.5
   },
 
   activeTitle: {
     fontSize: 26,
     fontWeight: "800",
     color: "#ff3b30",
-    marginBottom: 10
+    marginBottom: 10,
+    letterSpacing: 1
   },
 
   subtitle: {
-    color: "#aaa",
-    marginBottom: 30
+    color: "#888",
+    marginBottom: 30,
+    fontSize: 13
+  },
+
+  buttonWrapper: {
+    justifyContent: "center",
+    alignItems: "center"
+  },
+
+  outerRing: {
+    position: "absolute",
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: "rgba(255,59,48,0.08)",
   },
 
   button: {
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "#ef4444",
+    backgroundColor: "#ff3b30",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#ef4444",
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowColor: "#ff3b30",
+    shadowOpacity: 0.6,
+    shadowRadius: 25,
+    elevation: 15,
     overflow: "hidden"
   },
 
   text: {
-    color: "white",
-    fontSize: 36,
-    fontWeight: "800",
+    color: "#fff",
+    fontSize: 34,
+    fontWeight: "900",
     letterSpacing: 3
   },
 
@@ -175,7 +214,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     height: 6,
-    backgroundColor: "#fff"
+    backgroundColor: "#fff",
+    opacity: 0.9
   },
 
   stopButton: {
@@ -184,14 +224,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#ff3b30",
     paddingVertical: 18,
-    paddingHorizontal: 40,
-    borderRadius: 14
+    paddingHorizontal: 45,
+    borderRadius: 18,
   },
 
   stopText: {
     color: "#ff3b30",
     fontSize: 18,
-    fontWeight: "700"
+    fontWeight: "700",
+    letterSpacing: 1
   }
 
 });

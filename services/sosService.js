@@ -4,11 +4,15 @@ import { startLocationTracking, stopLocationTracking } from "./locationTracker";
 import { startAudioEvidence, stopAudioEvidence } from "./audioEvidence";
 import { startEvidenceSession, endEvidenceSession } from "./evidenceService";
 import { startPhotoEvidence, stopPhotoEvidence } from "./photoEvidence";
+import { getContacts } from "./contactService";
+import { sendSOSAlert } from "./alertService";
+import { db } from "./firebase";
+import { ref, set } from "firebase/database";
+
 
 
 const SOS_STATE_KEY = "SOS_ACTIVE";
 const PASSCODE_KEY = "SOS_PASSCODE";
-
 
 
 // START SOS
@@ -23,6 +27,15 @@ export const triggerSOS = async () => {
       return;
     }
 
+    const sessionId = Date.now().toString();
+
+    await AsyncStorage.setItem("SOS_SESSION_ID", sessionId);
+    await set(ref(db, `sessions/${sessionId}/status`), {
+      active: true,
+      startTime: Date.now()
+    });
+
+
     console.log("🚨 SOS ACTIVATED");
 
     await AsyncStorage.setItem(SOS_STATE_KEY, "true");
@@ -36,8 +49,20 @@ export const triggerSOS = async () => {
     console.log("Starting location tracking...");
     await startLocationTracking();
 
+    // wait for first location to be stored
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    const contacts = await getContacts();
+
+    if (contacts.length !== 0) {
+      await sendSOSAlert();
+      console.log("SOS alert sent to trusted contacts");
+    }
+
+
     console.log("Starting photo evidence...");
     await startPhotoEvidence();
+
 
     console.log("SOS systems running");
 
@@ -63,6 +88,12 @@ export const stopSOS = async () => {
     await stopAudioEvidence();
     await stopPhotoEvidence();
     await endEvidenceSession();
+
+    const sessionId = await AsyncStorage.getItem("SOS_SESSION_ID");
+
+    if (sessionId) {
+      await set(ref(db, `sessions/${sessionId}/status/active`), false);
+    }
 
     await AsyncStorage.setItem(SOS_STATE_KEY, "false");
 

@@ -1,10 +1,17 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
-import { addLocationEvidence } from "./evidenceService"
+import { addLocationEvidence, setLastLocation } from "./evidenceService";
+import { db } from "./firebase";
+import { ref, push } from "firebase/database";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+
 
 const LOCATION_TASK = "SOS_LOCATION_TASK";
 
 let locationInterval = null;
+
+const LAST_LOCATION_KEY = "LAST_KNOWN_LOCATION";
 
 /* =====================================================
    BACKGROUND TRACKING (DEV BUILD MODE ONLY)
@@ -111,7 +118,20 @@ export const startLocationTracking = async () => {
         location.coords
       );
 
+      const sessionId = await AsyncStorage.getItem("SOS_SESSION_ID");
+
+      if (sessionId) {
+        await push(ref(db, `sessions/${sessionId}/locations`), {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          time: Date.now()
+        });
+      }
+
+
       await addLocationEvidence(location.coords);
+      await setLastLocation(location.coords);
+
 
     } catch (err) {
 

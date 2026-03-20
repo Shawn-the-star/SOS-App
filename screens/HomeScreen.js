@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import PanicButton from "../components/PanicButton";
-import ActionCard from "../components/ActionCard";
 import StatusCard from "../components/StatusCard";
 import { colors } from "../constants/theme";
 import { startLocationTracking } from "../services/locationTracker";
@@ -11,6 +10,8 @@ import { useEffect, useState, useCallback } from "react";
 import { triggerSOS, stopSOS, setSOSPasscode } from "../services/sosService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PasscodeModal from "../components/PasscodeModal";
+import ActivityFeed from "../components/ActivityFeed";
+import { sendSOSAlert } from "../services/alertService";
 
 
 
@@ -25,25 +26,17 @@ export default function HomeScreen() {
   const [isSOSActive, setIsSOSActive] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-
   useEffect(() => {
-
     const loadSOSState = async () => {
       const state = await AsyncStorage.getItem(SOS_STATE_KEY);
       setIsSOSActive(state === "true");
     };
-
     loadSOSState();
-
   }, []);
-
-
 
   useFocusEffect(
     useCallback(() => {
-
       const refreshStatus = async () => {
-
         const permissions = await checkPermissions();
 
         setLocationReady(permissions.location);
@@ -52,91 +45,82 @@ export default function HomeScreen() {
 
         const contacts = await getContacts();
         setContactsReady(contacts.length > 0);
-
       };
 
       refreshStatus();
-
     }, [])
   );
 
-
   const handleSOS = async () => {
-
     try {
-
       await triggerSOS();
+
       setIsSOSActive(true);
-
     } catch (error) {
-
       console.log("SOS error:", error);
-
     }
-
-  }
+  };
 
   const stopSOSHandler = () => {
     setShowModal(true);
   };
-
+  
   const handlePasscodeSubmit = async (code) => {
-
     const success = await stopSOS(code);
-
     if (success) {
       setIsSOSActive(false);
       return true;
     }
-
     return false;
   };
 
-
-
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
 
+      {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.title}>Emergency SOS</Text>
         <Text style={styles.subtitle}>Your safety companion</Text>
       </View>
 
-      <StatusCard
-        contactsReady={contactsReady}
-        locationReady={locationReady}
-        audioReady={audioReady}
-        cameraReady={cameraReady}
-      />
-
-
-      <PanicButton
-        onActivate={handleSOS}
-        onStop={stopSOSHandler}
-        isActive={isSOSActive}
-      />
-
-      <Text style={styles.instructions}>
-        Hold the button for 3 seconds to trigger emergency
-      </Text>
-
-      <View style={styles.actionsContainer}>
-        <ActionCard title="Contacts" icon="contacts" />
-        <ActionCard title="Location" icon="location-on" />
-        <ActionCard title="Evidence" icon="videocam" />
+      {/* STATUS CARD */}
+      <View style={styles.section}>
+        <StatusCard
+          contactsReady={contactsReady}
+          locationReady={locationReady}
+          audioReady={audioReady}
+          cameraReady={cameraReady}
+        />
       </View>
 
+      {/* PANIC BUTTON */}
+      <View style={styles.buttonSection}>
+        <PanicButton
+          onActivate={handleSOS}
+          onStop={stopSOSHandler}
+          isActive={isSOSActive}
+        />
+        <Text style={styles.instructions}>
+          Hold for 3 seconds to trigger emergency
+        </Text>
+      </View>
 
+      {/* ACTIVITY FEED */}
+      <ActivityFeed />
+
+
+      {/* PASSCODE MODAL */}
       <PasscodeModal
         visible={showModal}
         onClose={() => setShowModal(false)}
         onSubmit={handlePasscodeSubmit}
       />
 
-
-    </View >
-
-
+    </ScrollView>
   );
 }
 
@@ -144,47 +128,63 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    padding: 24,
-    justifyContent: "space-evenly",
-    alignItems: "center"
+    backgroundColor: "#0c0c0c",
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 20,
   },
 
   header: {
-    alignItems: "center"
+    alignItems: "center",
+    marginBottom: 25,
   },
 
   title: {
-    fontSize: 32,
-    color: colors.textPrimary,
-    fontWeight: "bold"
+    fontSize: 30,
+    color: "#fff",
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
 
   subtitle: {
-    color: colors.textSecondary,
-    marginTop: 5
+    color: "#888",
+    marginTop: 6,
+    fontSize: 14,
+  },
+
+  section: {
+    backgroundColor: "#161616",
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 25,
+  },
+
+  buttonSection: {
+    alignItems: "center",
+    marginBottom: 10,
   },
 
   instructions: {
-    color: colors.textSecondary,
+    color: "#777",
     textAlign: "center",
-    fontSize: 14
+    fontSize: 13,
+    marginTop: 10,
+  },
+
+  actionsWrapper: {
+    marginTop: 10,
+  },
+
+  sectionTitle: {
+    color: "#aaa",
+    fontSize: 13,
+    marginBottom: 10,
+    marginLeft: 5,
   },
 
   actionsContainer: {
     flexDirection: "row",
-    width: "100%"
+    justifyContent: "space-between",
   },
-
-  permissionButton: {
-    backgroundColor: "#222",
-    padding: 10,
-    borderRadius: 10
-  },
-
-  permissionText: {
-    color: "#aaa"
-  }
-
 
 });
